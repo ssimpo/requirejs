@@ -7,7 +7,6 @@
 //problems with requirejs.exec()/transpiler plugins that may not be strict.
 /*jslint regexp: true, nomen: true, sloppy: true */
 /*global window, navigator, document, importScripts, setTimeout, opera */
-
 var requirejs, require, define;
 (function (global) {
     var req, s, head, baseElement, dataMain, src,
@@ -28,6 +27,8 @@ var requirejs, require, define;
         //specifically. Sequence is 'loading', 'loaded', execution,
         // then 'complete'. The UA check is unfortunate, but not sure how
         //to feature test w/o causing perf issues.
+        isFirefoxEx = (Object.prototype.toString.call(global).toLowerCase() === "[object chromewindow]"),
+        isKomodoExt = ((isFirefoxEx)  && (Object.prototype.hasOwnProperty.call(global, "ko"))),
         readyRegExp = isBrowser && navigator.platform === 'PLAYSTATION 3' ?
                       /^complete$/ : /^(complete|loaded)$/,
         defContextName = '_',
@@ -37,6 +38,25 @@ var requirejs, require, define;
         cfg = {},
         globalDefQueue = [],
         useInteractive = false;
+    
+    if(isKomodoExt){
+        var mozJsSubScriptLoader =
+            Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
+                .getService(Components.interfaces.mozIJSSubScriptLoader);
+
+        var mozConsoleService =
+            Components.classes["@mozilla.org/consoleservice;1"]
+                .getService(Components.interfaces.nsIConsoleService);
+        
+        var console = {
+            log: function(value){
+                mozConsoleService.logStringMessage(value);
+            },
+            error: function(error){
+                Components.utils.reportError(error);
+            }
+        };
+    }
 
     function isFunction(it) {
         return ostring.call(it) === '[object Function]';
@@ -1834,7 +1854,10 @@ var requirejs, require, define;
     req.load = function (context, moduleName, url) {
         var config = (context && context.config) || {},
             node;
-        if (isBrowser) {
+        if (isKomodoExt) {
+            mozJsSubScriptLoader.loadSubScript(url, context);
+            context.completeLoad(moduleName);
+        } else if (isBrowser) {
             //In the browser so use a script tag
             node = req.createNode(config, moduleName, url);
 
